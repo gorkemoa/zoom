@@ -8,6 +8,179 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Video konteyneri için stil */
+        .video-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            height: calc(100vh - 70px);
+            background-color: #1a1a1a;
+            overflow-y: auto;
+        }
+        
+        /* Video düzenleyici */
+        .video-wrap {
+            position: relative;
+            width: 320px;
+            height: 240px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        /* İki kullanıcı için daha büyük görüntü */
+        .video-container.two-users .video-wrap {
+            width: 45%;
+            height: 70vh;
+        }
+        
+        /* Tek kullanıcı için tam ekran */
+        .video-container.one-user .video-wrap {
+            width: 100%;
+            max-width: 80%;
+            height: 80vh;
+        }
+        
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #444;
+        }
+        
+        .local-video-wrap {
+            border: 2px solid #4285f4;
+        }
+        
+        /* İsim etiketi */
+        .name-tag {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        /* Ses kontrolü */
+        .audio-control {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .audio-control:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        
+        /* Kontrol düğmeleri */
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background-color: #2a2a2a;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        .control-button {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #444;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .control-button:hover {
+            background-color: #555;
+        }
+        
+        #hangupButton {
+            background-color: #d93025;
+        }
+        
+        #hangupButton:hover {
+            background-color: #b7271e;
+        }
+        
+        .control-button.active {
+            background-color: #4285f4;
+        }
+        
+        /* Oda bilgisi */
+        .room-info {
+            position: absolute;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .copy-button {
+            background: none;
+            border: none;
+            color: white;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+        
+        /* Bağlantı durumu göstergesi */
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: opacity 0.5s ease;
+        }
+        
+        .connection-status.connecting {
+            background-color: rgba(255, 186, 0, 0.7);
+            color: black;
+        }
+        
+        .connection-status.connected {
+            background-color: rgba(46, 204, 113, 0.7);
+        }
+        
+        .connection-status.disconnected,
+        .connection-status.failed,
+        .connection-status.closed {
+            background-color: rgba(231, 76, 60, 0.7);
+        }
+    </style>
 </head>
 <body>
     <div class="container-fluid p-0">
@@ -62,7 +235,22 @@
                 { urls: 'stun:stun4.l.google.com:19302' },
                 { urls: 'stun:stun.ekiga.net' },
                 { urls: 'stun:stun.ideasip.com' },
-                { urls: 'stun:stun.schlund.de' }
+                { urls: 'stun:stun.schlund.de' },
+                // Ücretsiz TURN sunucuları ekleyelim
+                {
+                    urls: [
+                        'turn:openrelay.metered.ca:80',
+                        'turn:openrelay.metered.ca:443',
+                        'turn:openrelay.metered.ca:443?transport=tcp'
+                    ],
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:global.turn.twilio.com:3478?transport=udp',
+                    username: 'f4809447', // demo amaçlı kullanıcı adı
+                    credential: 'f4809447'  // demo amaçlı parola
+                }
             ],
             iceCandidatePoolSize: 10
         };
@@ -144,53 +332,14 @@
             // Teklif oluşturup oluşturmadığımızı izleyen bayrak
             peers[userId]._isInitiator = true;
 
-            // Bağlantı durumu değişikliklerini izle
-            peerConnection.onconnectionstatechange = (event) => {
-                console.log(`Bağlantı durumu (${userId}): ${peerConnection.connectionState}`);
-                
-                // Bağlantı başarısız olursa temizle ve yeniden dene
-                if (peerConnection.connectionState === 'failed' || 
-                    peerConnection.connectionState === 'disconnected' ||
-                    peerConnection.connectionState === 'closed') {
-                    console.log(`${userId} ile bağlantı durumu: ${peerConnection.connectionState}. Temizleniyor.`);
-                    if (peers[userId]) {
-                        peers[userId].close();
-                        delete peers[userId];
-                    }
-                }
-            };
-            
-            peerConnection.onicecandidateerror = (event) => {
-                console.error(`ICE Aday Hatası (${userId}):`, event);
-            };
+            // Peer için olay dinleyicilerini ayarla
+            setupPeerListeners(userId);
 
             // Yerel medya akışını peer bağlantısına ekleyelim
             localStream.getTracks().forEach(track => {
                 console.log(`Yerel ${track.kind} izi ekleniyor...`);
                 peerConnection.addTrack(track, localStream);
             });
-
-            // ICE aday olayını dinleyelim
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    console.log(`ICE adayı gönderiliyor (${userId})`);
-                    socket.emit('signal', {
-                        to: userId,
-                        signal: {
-                            type: 'ice-candidate',
-                            candidate: event.candidate
-                        }
-                    });
-                }
-            };
-
-            // Uzak akış olayını dinleyelim
-            peerConnection.ontrack = (event) => {
-                console.log(`Uzak medya akışı alındı (${userId})`);
-                if (!document.getElementById(`video-${userId}`)) {
-                    createVideoElement(userId, event.streams[0], false);
-                }
-            };
 
             // Teklif oluşturalım ve gönderelim
             peerConnection.createOffer()
@@ -213,18 +362,44 @@
 
         // Bekleyen ICE adaylarını uygula
         function applyPendingIceCandidates(userId) {
-            if (!peers[userId] || !peers[userId]._pendingIceCandidates) return;
+            if (!peers[userId]) {
+                console.warn(`${userId} için bekleyen ICE adayları uygulanamadı, peer bağlantısı yok`);
+                return;
+            }
+            
+            if (!peers[userId]._pendingIceCandidates || peers[userId]._pendingIceCandidates.length === 0) {
+                console.log(`${userId} için bekleyen ICE adayı yok`);
+                return;
+            }
+            
+            // RemoteDescription kontrol et
+            if (!peers[userId].remoteDescription || !peers[userId].remoteDescription.type) {
+                console.warn(`${userId} için bekleyen ICE adayları uygulanamadı, remoteDescription henüz ayarlanmamış`);
+                return;
+            }
             
             const pendingCandidates = peers[userId]._pendingIceCandidates;
             console.log(`${userId} için ${pendingCandidates.length} bekleyen ICE adayı uygulanıyor`);
             
-            pendingCandidates.forEach(candidate => {
-                peers[userId].addIceCandidate(new RTCIceCandidate(candidate))
-                    .catch(error => console.error(`Bekleyen ICE adayı ekleme hatası (${userId}):`, error));
+            const promises = pendingCandidates.map(candidate => {
+                return peers[userId].addIceCandidate(new RTCIceCandidate(candidate))
+                    .then(() => {
+                        console.log(`${userId} için bekleyen ICE adayı başarıyla eklendi`);
+                        return true;
+                    })
+                    .catch(error => {
+                        console.error(`Bekleyen ICE adayı ekleme hatası (${userId}):`, error);
+                        return false;
+                    });
             });
             
-            // Bekleyen adayları temizle
-            peers[userId]._pendingIceCandidates = [];
+            Promise.all(promises)
+                .then(results => {
+                    const successCount = results.filter(Boolean).length;
+                    console.log(`${userId} için ${successCount}/${pendingCandidates.length} ICE adayı başarıyla eklendi`);
+                    // Bekleyen adayları temizle
+                    peers[userId]._pendingIceCandidates = [];
+                });
         }
         
         // Sinyalleşme işlemlerini yönetir
@@ -303,45 +478,56 @@
                 if (peers[fromUserId].signalingState !== 'stable') {
                     console.log(`${fromUserId} için signaling durumu stable değil, önce kapatılıyor: ${peers[fromUserId].signalingState}`);
                     
-                    // Collision durumunu çöz - rollback ile
-                    const isInitiator = peers[fromUserId]._isInitiator;
+                    // Çakışma çözümü için her iki tarafın da kendi teklifini rollback yapması gerekiyor
+                    const myId = socket.id;
+                    const otherIdLessThanMine = fromUserId < myId;
                     
-                    if (isInitiator) {
-                        console.log(`${fromUserId} ile çakışma durumu, bizden daha düşük ID olduğu için rollback yapıyoruz`);
-                        return; // Bizden daha düşük ID sahibi taraf olarak çakışmada geri çekiliyoruz
-                    }
-                    
-                    peers[fromUserId].close();
-                    peers[fromUserId] = new RTCPeerConnection(peerConfig);
-                    peers[fromUserId]._pendingIceCandidates = [];
-                    peers[fromUserId]._isInitiator = false;
-                    
-                    // Yeniden track'leri ekleyelim
-                    localStream.getTracks().forEach(track => {
-                        peers[fromUserId].addTrack(track, localStream);
-                    });
-                    
-                    // Olay dinleyicileri yeniden ekleyelim
-                    peers[fromUserId].onicecandidate = (event) => {
-                        if (event.candidate) {
-                            socket.emit('signal', {
-                                to: fromUserId,
-                                signal: {
-                                    type: 'ice-candidate',
-                                    candidate: event.candidate
+                    // ID'si düşük olan kazanır yaklaşımı
+                    if (otherIdLessThanMine) {
+                        console.log(`${fromUserId} ile çakışma durumu, karşı tarafın ID'si daha düşük olduğu için onların teklifini kabul ediyoruz`);
+                        
+                        // Kendi teklifimizi rollback yapalım
+                        Promise.resolve()
+                            .then(() => {
+                                if (peers[fromUserId].signalingState === 'have-local-offer') {
+                                    // Eğer zaten bir teklifimiz varsa rollback
+                                    return peers[fromUserId].setLocalDescription({type: 'rollback'});
                                 }
-                            });
-                        }
-                    };
-                    
-                    peers[fromUserId].ontrack = (event) => {
-                        console.log(`Uzak medya akışı alındı (${fromUserId})`);
-                        if (!document.getElementById(`video-${fromUserId}`)) {
-                            createVideoElement(fromUserId, event.streams[0], false);
-                        }
-                    };
+                                return Promise.resolve();
+                            })
+                            .then(() => {
+                                // Şimdi gelen teklifi işleyelim
+                                return peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                            })
+                            .then(() => {
+                                console.log(`${fromUserId} teklifine cevap oluşturuyorum`);
+                                // Bekleyen ICE adaylarını ekle
+                                applyPendingIceCandidates(fromUserId);
+                                return peers[fromUserId].createAnswer();
+                            })
+                            .then(answer => {
+                                console.log(`Yerel açıklamayı ayarlıyorum (cevap)`);
+                                return peers[fromUserId].setLocalDescription(answer);
+                            })
+                            .then(() => {
+                                console.log(`${fromUserId} kullanıcısına cevap gönderiyorum`);
+                                socket.emit('signal', {
+                                    to: fromUserId,
+                                    signal: {
+                                        type: 'answer',
+                                        sdp: peers[fromUserId].localDescription
+                                    }
+                                });
+                            })
+                            .catch(error => console.error(`Rollback ve cevap oluşturma hatası (${fromUserId}):`, error));
+                        return; // İşlemi tamamladık
+                    } else {
+                        console.log(`${fromUserId} ile çakışma durumu, bizim ID'miz daha düşük olduğu için biz kazanıyoruz, tekliflerini görmezden geliyoruz`);
+                        return; // Bizim teklifimiz geçerli olacak, bu teklifi görmezden gel
+                    }
                 }
                 
+                // Normal durum - doğrudan teklifi kabul et
                 peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
                     .then(() => {
                         console.log(`${fromUserId} teklifine cevap oluşturuyorum`);
@@ -385,11 +571,37 @@
             else if (signal.type === 'ice-candidate') {
                 console.log(`${fromUserId} ICE adayını ekliyorum`);
                 
+                // Eğer peer bağlantısı mevcut değilse oluşturalım
+                if (!peers[fromUserId]) {
+                    console.log(`${fromUserId} için ICE adayı geldi ama peer bağlantısı yok, oluşturuluyor`);
+                    peers[fromUserId] = new RTCPeerConnection(peerConfig);
+                    peers[fromUserId]._pendingIceCandidates = [];
+                    peers[fromUserId]._isInitiator = false;
+                    
+                    // Yerel medya akışını peer bağlantısına ekleyelim
+                    localStream.getTracks().forEach(track => {
+                        peers[fromUserId].addTrack(track, localStream);
+                    });
+                    
+                    // Diğer olay dinleyicileri ekleyelim
+                    setupPeerListeners(fromUserId);
+                }
+                
                 // ICE adayını sadece remoteDescription ayarlandığında ekleyelim, 
                 // aksi halde daha sonra eklenmek üzere saklayalım
-                if (peers[fromUserId] && peers[fromUserId].remoteDescription) {
+                if (peers[fromUserId].remoteDescription && peers[fromUserId].remoteDescription.type) {
                     peers[fromUserId].addIceCandidate(new RTCIceCandidate(signal.candidate))
-                        .catch(error => console.error(`ICE aday ekleme hatası (${fromUserId}):`, error));
+                        .then(() => {
+                            console.log(`${fromUserId} için ICE adayı başarıyla eklendi`);
+                        })
+                        .catch(error => {
+                            console.error(`ICE aday ekleme hatası (${fromUserId}):`, error);
+                            // Hata durumunda bile adayı kaydedelim
+                            if (!peers[fromUserId]._pendingIceCandidates) {
+                                peers[fromUserId]._pendingIceCandidates = [];
+                            }
+                            peers[fromUserId]._pendingIceCandidates.push(signal.candidate);
+                        });
                 } else {
                     console.warn(`${fromUserId} için ICE adayı eklenemedi, remoteDescription ayarlanmamış`);
                     
@@ -402,8 +614,202 @@
             }
         }
 
+        // Peer için olay dinleyicilerini ayarlayan yardımcı fonksiyon
+        function setupPeerListeners(userId) {
+            if (!peers[userId]) return;
+            
+            // ICE aday olayını dinleyelim
+            peers[userId].onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log(`ICE adayı gönderiliyor (${userId})`);
+                    socket.emit('signal', {
+                        to: userId,
+                        signal: {
+                            type: 'ice-candidate',
+                            candidate: event.candidate
+                        }
+                    });
+                } else {
+                    console.log(`ICE toplama tamamlandı (${userId})`);
+                }
+            };
+            
+            // ICE bağlantı durumu değişikliklerini izleyelim
+            peers[userId].oniceconnectionstatechange = (event) => {
+                const state = peers[userId].iceConnectionState;
+                console.log(`ICE bağlantı durumu (${userId}): ${state}`);
+                
+                // Bağlantı durumunu göster
+                if (state === 'connected' || state === 'completed') {
+                    updateConnectionStatus(userId, 'connected');
+                } else if (state === 'checking') {
+                    updateConnectionStatus(userId, 'connecting');
+                } else if (state === 'disconnected') {
+                    updateConnectionStatus(userId, 'disconnected');
+                } else if (state === 'failed') {
+                    updateConnectionStatus(userId, 'failed');
+                    // Bağlantıyı yeniden başlatmayı deneyebiliriz
+                    restartIce(userId);
+                } else if (state === 'closed') {
+                    updateConnectionStatus(userId, 'closed');
+                }
+            };
+            
+            // Uzak akış olayını dinleyelim
+            peers[userId].ontrack = (event) => {
+                console.log(`Uzak medya akışı alındı (${userId})`, event.streams);
+                
+                if (event.streams && event.streams[0]) {
+                    console.log(`${userId} için akış var, video elementini oluştur/güncelle`);
+                    
+                    // Akış bilgilerini görüntüle
+                    const tracks = event.streams[0].getTracks();
+                    tracks.forEach(track => {
+                        console.log(`${userId} için ${track.kind} izi alındı: id=${track.id}, enabled=${track.enabled}`);
+                    });
+                    
+                    // Video elementini oluştur veya güncelle
+                    createVideoElement(userId, event.streams[0], false);
+                    
+                    // Akış değişikliklerini izle
+                    event.streams[0].onaddtrack = (e) => {
+                        console.log(`${userId} için yeni iz eklendi:`, e.track);
+                        document.getElementById(`video-${userId}`).srcObject = event.streams[0];
+                    };
+                    
+                    event.streams[0].onremovetrack = (e) => {
+                        console.log(`${userId} için iz kaldırıldı:`, e.track);
+                        
+                        // Eğer tüm izler kaldırıldıysa video elementini güncelle
+                        const remainingTracks = event.streams[0].getTracks();
+                        if (remainingTracks.length === 0) {
+                            console.log(`${userId} için tüm izler kaldırıldı`);
+                            updateConnectionStatus(userId, 'disconnected');
+                        }
+                    };
+                } else {
+                    console.warn(`${userId} için akış bulunamadı!`);
+                }
+            };
+            
+            // ICE aday hatalarını dinleyelim
+            peers[userId].onicecandidateerror = (event) => {
+                console.error(`ICE Aday Hatası (${userId}):`, event);
+            };
+            
+            // Bağlantı durumu değişikliklerini izleyelim
+            peers[userId].onconnectionstatechange = (event) => {
+                const state = peers[userId].connectionState;
+                console.log(`Bağlantı durumu (${userId}): ${state}`);
+                
+                if (state === 'connected') {
+                    console.log(`${userId} ile bağlantı başarıyla kuruldu`);
+                    updateConnectionStatus(userId, 'connected');
+                } else if (state === 'connecting') {
+                    updateConnectionStatus(userId, 'connecting');
+                } else if (state === 'disconnected') {
+                    console.log(`${userId} ile bağlantı kesildi`);
+                    updateConnectionStatus(userId, 'disconnected');
+                } else if (state === 'failed') {
+                    console.log(`${userId} ile bağlantı başarısız oldu`);
+                    updateConnectionStatus(userId, 'failed');
+                    
+                    // Bağlantı başarısız olursa yeniden deneyebiliriz
+                    setTimeout(() => {
+                        if (peers[userId]) {
+                            restartIce(userId);
+                        }
+                    }, 3000);
+                } else if (state === 'closed') {
+                    console.log(`${userId} ile bağlantı kapatıldı`);
+                    updateConnectionStatus(userId, 'closed');
+                    
+                    // Bağlantı kapatıldıysa temizle
+                    cleanup(userId);
+                }
+            };
+            
+            // Sinyalleşme durumu değişikliklerini izleyelim
+            peers[userId].onsignalingstatechange = (event) => {
+                console.log(`Sinyalleşme durumu (${userId}): ${peers[userId].signalingState}`);
+            };
+        }
+        
+        // ICE bağlantısını yeniden başlatır
+        function restartIce(userId) {
+            if (!peers[userId]) return;
+            
+            console.log(`${userId} için ICE bağlantısı yeniden başlatılıyor`);
+            try {
+                // ICE yeniden başlatma işlevini çağır
+                peers[userId].restartIce();
+                
+                // Yeni bir teklif oluştur (ice restart ile)
+                peers[userId].createOffer({ iceRestart: true })
+                    .then(offer => {
+                        console.log(`${userId} için ICE restart teklifi oluşturuldu`);
+                        return peers[userId].setLocalDescription(offer);
+                    })
+                    .then(() => {
+                        console.log(`${userId} için ICE restart teklifini gönderiyorum`);
+                        socket.emit('signal', {
+                            to: userId,
+                            signal: {
+                                type: 'offer',
+                                sdp: peers[userId].localDescription
+                            }
+                        });
+                    })
+                    .catch(error => console.error(`ICE restart hatası (${userId}):`, error));
+            } catch (error) {
+                console.error(`ICE restart işlemi başlatılamadı (${userId}):`, error);
+                
+                // Yeniden bağlanmayı deneyelim
+                reconnectPeer(userId);
+            }
+        }
+        
+        // Peer bağlantısını temizler
+        function cleanup(userId) {
+            if (peers[userId]) {
+                peers[userId].close();
+                delete peers[userId];
+            }
+            
+            const videoElement = document.getElementById(`video-wrap-${userId}`);
+            if (videoElement) {
+                videoElement.remove();
+                // Video düzenini güncelle
+                updateContainerLayout();
+            }
+        }
+        
+        // Peer bağlantısını yeniden oluşturur
+        function reconnectPeer(userId) {
+            console.log(`${userId} için bağlantı yeniden oluşturuluyor`);
+            
+            // Önce eski bağlantıyı temizle
+            cleanup(userId);
+            
+            // Sonra yeni bir bağlantı başlat
+            setTimeout(() => {
+                connectToNewUser(userId);
+            }, 1000);
+        }
+
         // Video elementi oluşturur ve konteynere ekler
         function createVideoElement(userId, stream, isLocal) {
+            console.log(`Video elementi oluşturuluyor: userId=${userId}, isLocal=${isLocal}, stream=`, stream);
+            
+            // Eğer bu kullanıcı için zaten bir video elementi varsa, sadece akışı güncelleyelim
+            const existingVideo = document.getElementById(`video-${userId}`);
+            if (existingVideo) {
+                console.log(`${userId} için mevcut video elementi bulundu, sadece akış güncelleniyor`);
+                existingVideo.srcObject = stream;
+                return;
+            }
+            
+            // Yeni video elementi oluştur
             const videoWrap = document.createElement('div');
             videoWrap.className = 'video-wrap';
             videoWrap.id = `video-wrap-${userId}`;
@@ -412,10 +818,30 @@
             video.id = `video-${userId}`;
             video.srcObject = stream;
             video.autoplay = true;
+            video.playsInline = true; // iOS için önemli
+            
+            // Play işlemi için
+            video.onloadedmetadata = () => {
+                console.log(`${userId} video metadatası yüklendi, play() çağrılıyor`);
+                video.play().catch(e => console.error(`Video oynatma hatası (${userId}):`, e));
+            };
+            
             if (isLocal) {
                 video.muted = true;
                 video.className = 'local-video';
                 videoWrap.className += ' local-video-wrap';
+            } else {
+                // Karşı taraf için ses kontrolü ekleyelim
+                const audioControl = document.createElement('div');
+                audioControl.className = 'audio-control';
+                audioControl.innerHTML = '<i class="fas fa-volume-up"></i>';
+                audioControl.onclick = () => {
+                    video.muted = !video.muted;
+                    audioControl.innerHTML = video.muted
+                        ? '<i class="fas fa-volume-mute"></i>'
+                        : '<i class="fas fa-volume-up"></i>';
+                };
+                videoWrap.appendChild(audioControl);
             }
 
             const nameTag = document.createElement('div');
@@ -425,6 +851,67 @@
             videoWrap.appendChild(video);
             videoWrap.appendChild(nameTag);
             videoContainer.appendChild(videoWrap);
+            
+            // Uzak video için bağlantı durumunu göster
+            if (!isLocal) {
+                const connectionStatus = document.createElement('div');
+                connectionStatus.className = 'connection-status';
+                connectionStatus.id = `connection-status-${userId}`;
+                connectionStatus.innerText = 'Bağlanıyor...';
+                videoWrap.appendChild(connectionStatus);
+                
+                // Bağlantı durumunu güncelleyen bir fonksiyon
+                updateConnectionStatus(userId, 'new');
+            }
+            
+            console.log(`${userId} için video elementi oluşturuldu`);
+            
+            // Video düzenini güncelle
+            updateContainerLayout();
+        }
+
+        // Bağlantı durumunu görsel olarak gösterir
+        function updateConnectionStatus(userId, state) {
+            const statusElement = document.getElementById(`connection-status-${userId}`);
+            if (!statusElement) return;
+            
+            let statusText = 'Bilinmeyen';
+            let statusClass = '';
+            
+            switch(state) {
+                case 'new':
+                    statusText = 'Bağlanıyor...';
+                    statusClass = 'connecting';
+                    break;
+                case 'connecting':
+                    statusText = 'Bağlanıyor...';
+                    statusClass = 'connecting';
+                    break;
+                case 'connected':
+                    statusText = 'Bağlandı';
+                    statusClass = 'connected';
+                    // 3 saniye sonra durumu gizle
+                    setTimeout(() => {
+                        statusElement.style.opacity = '0';
+                    }, 3000);
+                    break;
+                case 'disconnected':
+                    statusText = 'Bağlantı Kesildi';
+                    statusClass = 'disconnected';
+                    break;
+                case 'failed':
+                    statusText = 'Bağlantı Başarısız';
+                    statusClass = 'failed';
+                    break;
+                case 'closed':
+                    statusText = 'Bağlantı Kapatıldı';
+                    statusClass = 'closed';
+                    break;
+            }
+            
+            statusElement.innerText = statusText;
+            statusElement.className = `connection-status ${statusClass}`;
+            statusElement.style.opacity = '1';
         }
 
         // Mikrofonu açıp kapatır
@@ -543,6 +1030,21 @@
             socket?.emit('leave_room', { oda_id: roomId });
             localStream?.getTracks().forEach(track => track.stop());
         };
+
+        // Video elementlerinin sayısına göre konteynerin sınıfını günceller
+        function updateContainerLayout() {
+            const totalVideos = document.querySelectorAll('.video-wrap').length;
+            
+            if (totalVideos === 1) {
+                videoContainer.className = 'video-container one-user';
+            } else if (totalVideos === 2) {
+                videoContainer.className = 'video-container two-users';
+            } else {
+                videoContainer.className = 'video-container';
+            }
+            
+            console.log(`Görünüm güncellendi: ${totalVideos} kullanıcı`);
+        }
     </script>
 </body>
 </html> 
