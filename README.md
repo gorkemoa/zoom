@@ -1,56 +1,55 @@
-# Görüntülü Konuşma Uygulaması
+# Python Zoom Klonu
 
-Zoom benzeri bir görüntülü konuşma uygulaması. WebRTC teknolojisi kullanılarak gerçek zamanlı video/ses iletişimi sağlar.
+Bu proje, Python Flask ve WebRTC teknolojileri kullanılarak oluşturulmuş basit bir video konferans uygulamasıdır.
 
 ## Özellikler
 
-- Gerçek zamanlı görüntülü ve sesli konuşma
-- Oda oluşturma ve odaya katılma
+- Gerçek zamanlı video ve ses iletişimi
 - Ekran paylaşımı
-- Metin tabanlı sohbet
+- Oda oluşturma ve katılma
 - Mikrofon ve kamera kontrolü
-- Duyarlı ve mobil uyumlu arayüz
+- Duyarlı arayüz tasarımı
 
-## Teknolojiler
+## Gereksinimler
 
-- Frontend: HTML, CSS, JavaScript
-- Backend: Node.js, Express
-- WebRTC: PeerJS
-- Gerçek zamanlı iletişim: Socket.io
+- Python 3.6+
+- Flask
+- Flask-SocketIO
+- Modern bir web tarayıcısı (Chrome, Firefox, Edge, Safari)
 
 ## Kurulum
 
-1. Gereksinimleri yükleyin:
-   ```bash
-   npm install
-   ```
-
-2. Uygulamayı başlatın:
-   ```bash
-   npm start
-   ```
-
-3. Tarayıcınızda aşağıdaki adrese gidin:
-   ```
-   http://localhost:3000
-   ```
-
-## Nasıl Kullanılır
-
-1. Ana sayfada "Yeni Görüşme Başlat" düğmesine tıklayarak yeni bir görüşme odası oluşturun.
-2. Oluşturulan odanın bağlantısını kopyalayıp başkalarıyla paylaşın.
-3. Diğer kullanıcılar, bu bağlantıyı kullanarak veya ana sayfada oda ID'sini girerek görüşmeye katılabilirler.
-
-## Geliştirme
-
-Geliştirme modunda çalıştırmak için:
+1. Projeyi klonlayın veya indirin
+2. Terminal/komut isteminde proje dizinine gidin
+3. Gerekli paketleri yükleyin:
 
 ```bash
-npm run dev
+pip install -r requirements.txt
 ```
 
-Bu komut, dosya değişikliklerinde otomatik olarak sunucuyu yeniden başlatacaktır.
+4. Uygulamayı başlatın:
+
+```bash
+python app.py
+```
+
+5. Tarayıcınızda `http://localhost:5000` adresine gidin
+
+## Kullanım
+
+1. Ana sayfada, yeni bir toplantı oluşturmak için "Yeni Toplantı Oluştur" düğmesine tıklayın
+2. Var olan bir toplantıya katılmak için, toplantı ID'sini girin ve "Katıl" düğmesine tıklayın
+3. Kamera ve mikrofon izinleri istendiğinde izin verin
+4. Kontrol panelindeki düğmeler ile mikrofonunuzu ve kameranızı açıp kapatabilir, ekranınızı paylaşabilir veya toplantıdan ayrılabilirsiniz
+
+## Teknolojiler
+
+- Python Flask: Web uygulaması çatısı
+- Flask-SocketIO: Gerçek zamanlı iletişim için Socket.IO entegrasyonu
+- WebRTC: Tarayıcılar arası doğrudan medya iletişimi
+- JavaScript: İstemci tarafı mantığı
+- Bootstrap: Duyarlı tasarım için
 
 ## Lisans
 
-MIT 
+Bu proje [MIT Lisansı](LICENSE) altında lisanslanmıştır. 

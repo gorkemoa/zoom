@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toplantı - Python Zoom Klonu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container-fluid p-0">
+        <div class="video-container" id="videoContainer">
+            <!-- Video akışları burada görüntülenecek -->
+        </div>
+        
+        <div class="controls">
+            <div class="control-button" id="micToggle">
+                <i class="fas fa-microphone"></i>
+            </div>
+            <div class="control-button" id="videoToggle">
+                <i class="fas fa-video"></i>
+            </div>
+            <div class="control-button" id="screenShareToggle">
+                <i class="fas fa-desktop"></i>
+            </div>
+            <div class="control-button" id="hangupButton">
+                <i class="fas fa-phone-slash"></i>
+            </div>
+            <div class="room-info">
+                Oda ID: <span id="roomIdDisplay">{{ oda_id }}</span>
+                <button class="copy-button" onclick="copyRoomId()"><i class="fas fa-copy"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script>
+        // Oda ID'sini değişkene atayalım
+        const roomId = '{{ oda_id }}';
+        let localStream = null;
+        let peers = {};
+        let localVideoEnabled = true;
+        let localAudioEnabled = true;
+        let socket = null;
+        
+        // DOM elementleri
+        const videoContainer = document.getElementById('videoContainer');
+        const micToggle = document.getElementById('micToggle');
+        const videoToggle = document.getElementById('videoToggle');
+        const screenShareToggle = document.getElementById('screenShareToggle');
+        const hangupButton = document.getElementById('hangupButton');
+
+        // WebRTC yapılandırması
+        const peerConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        // Sayfanın yüklenmesini bekleyelim
+        window.onload = async function() {
+            try {
+                // Kullanıcının kamera ve mikrofon erişimini isteyelim
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                
+                // Yerel video akışını ekrana ekleyelim
+                createVideoElement('local', localStream, true);
+
+                // Socket.io bağlantısını kuralım
+                socket = io();
+
+                // Socket.io olaylarını dinleyelim
+                socket.on('connect', () => {
+                    console.log('Socket.io bağlantısı kuruldu');
+                    socket.emit('join_room', { oda_id: roomId });
+                });
+
+                socket.on('user_joined', (data) => {
+                    console.log('Yeni kullanıcı katıldı:', data.user_id);
+                    connectToNewUser(data.user_id);
+                });
+
+                socket.on('existing_users', (data) => {
+                    console.log('Mevcut kullanıcılar:', data.users);
+                    data.users.forEach(userId => {
+                        connectToNewUser(userId);
+                    });
+                });
+
+                socket.on('user_left', (data) => {
+                    console.log('Kullanıcı ayrıldı:', data.user_id);
+                    if (peers[data.user_id]) {
+                        document.getElementById(`video-${data.user_id}`)?.remove();
+                        peers[data.user_id].close();
+                        delete peers[data.user_id];
+                    }
+                });
+
+                socket.on('signal', (data) => {
+                    handleSignaling(data);
+                });
+
+                // Kontrol düğmeleri için olayları tanımlayalım
+                micToggle.addEventListener('click', toggleMic);
+                videoToggle.addEventListener('click', toggleVideo);
+                screenShareToggle.addEventListener('click', toggleScreenShare);
+                hangupButton.addEventListener('click', hangup);
+
+            } catch (error) {
+                console.error('Kamera veya mikrofon erişiminde hata:', error);
+                alert('Kamera veya mikrofon erişimi sağlanamadı. Lütfen izinleri kontrol edin.');
+            }
+        };
+
+        // Yeni bir kullanıcıyla bağlantı kurar
+        function connectToNewUser(userId) {
+            const peerConnection = new RTCPeerConnection(peerConfig);
+            peers[userId] = peerConnection;
+
+            // Yerel medya akışını peer bağlantısına ekleyelim
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            // ICE aday olayını dinleyelim
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('signal', {
+                        to: userId,
+                        signal: {
+                            type: 'ice-candidate',
+                            candidate: event.candidate
+                        }
+                    });
+                }
+            };
+
+            // Uzak akış olayını dinleyelim
+            peerConnection.ontrack = (event) => {
+                if (!document.getElementById(`video-${userId}`)) {
+                    createVideoElement(userId, event.streams[0], false);
+                }
+            };
+
+            // Teklif oluşturalım ve gönderelim
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
+                    socket.emit('signal', {
+                        to: userId,
+                        signal: {
+                            type: 'offer',
+                            sdp: peerConnection.localDescription
+                        }
+                    });
+                })
+                .catch(error => console.error('Teklif oluşturma hatası:', error));
+        }
+
+        // Sinyalleşme işlemlerini yönetir
+        function handleSignaling(data) {
+            const fromUserId = data.from;
+            const signal = data.signal;
+
+            if (!peers[fromUserId]) {
+                peers[fromUserId] = new RTCPeerConnection(peerConfig);
+
+                // Yerel medya akışını peer bağlantısına ekleyelim
+                localStream.getTracks().forEach(track => {
+                    peers[fromUserId].addTrack(track, localStream);
+                });
+
+                // ICE aday olayını dinleyelim
+                peers[fromUserId].onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit('signal', {
+                            to: fromUserId,
+                            signal: {
+                                type: 'ice-candidate',
+                                candidate: event.candidate
+                            }
+                        });
+                    }
+                };
+
+                // Uzak akış olayını dinleyelim
+                peers[fromUserId].ontrack = (event) => {
+                    if (!document.getElementById(`video-${fromUserId}`)) {
+                        createVideoElement(fromUserId, event.streams[0], false);
+                    }
+                };
+            }
+
+            // Sinyal tipine göre işlem yapalım
+            if (signal.type === 'offer') {
+                peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                    .then(() => peers[fromUserId].createAnswer())
+                    .then(answer => peers[fromUserId].setLocalDescription(answer))
+                    .then(() => {
+                        socket.emit('signal', {
+                            to: fromUserId,
+                            signal: {
+                                type: 'answer',
+                                sdp: peers[fromUserId].localDescription
+                            }
+                        });
+                    })
+                    .catch(error => console.error('Cevap oluşturma hatası:', error));
+            }
+            else if (signal.type === 'answer') {
+                peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                    .catch(error => console.error('Uzak açıklama ayarlama hatası:', error));
+            }
+            else if (signal.type === 'ice-candidate') {
+                peers[fromUserId].addIceCandidate(new RTCIceCandidate(signal.candidate))
+                    .catch(error => console.error('ICE aday ekleme hatası:', error));
+            }
+        }
+
+        // Video elementi oluşturur ve konteynere ekler
+        function createVideoElement(userId, stream, isLocal) {
+            const videoWrap = document.createElement('div');
+            videoWrap.className = 'video-wrap';
+            videoWrap.id = `video-wrap-${userId}`;
+
+            const video = document.createElement('video');
+            video.id = `video-${userId}`;
+            video.srcObject = stream;
+            video.autoplay = true;
+            if (isLocal) {
+                video.muted = true;
+                video.className = 'local-video';
+                videoWrap.className += ' local-video-wrap';
+            }
+
+            const nameTag = document.createElement('div');
+            nameTag.className = 'name-tag';
+            nameTag.innerText = isLocal ? 'Sen' : `Kullanıcı ${userId.substring(0, 5)}`;
+
+            videoWrap.appendChild(video);
+            videoWrap.appendChild(nameTag);
+            videoContainer.appendChild(videoWrap);
+        }
+
+        // Mikrofonu açıp kapatır
+        function toggleMic() {
+            localAudioEnabled = !localAudioEnabled;
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = localAudioEnabled;
+            });
+            
+            // Simgeyi güncelle
+            micToggle.innerHTML = localAudioEnabled 
+                ? '<i class="fas fa-microphone"></i>' 
+                : '<i class="fas fa-microphone-slash"></i>';
+        }
+
+        // Kamerayı açıp kapatır
+        function toggleVideo() {
+            localVideoEnabled = !localVideoEnabled;
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = localVideoEnabled;
+            });
+            
+            // Simgeyi güncelle
+            videoToggle.innerHTML = localVideoEnabled 
+                ? '<i class="fas fa-video"></i>' 
+                : '<i class="fas fa-video-slash"></i>';
+        }
+
+        // Ekran paylaşımını başlatır veya durdurur
+        async function toggleScreenShare() {
+            try {
+                if (screenShareToggle.classList.contains('active')) {
+                    // Ekran paylaşımını durdur ve kameraya geri dön
+                    localStream.getTracks().forEach(track => track.stop());
+                    
+                    // Kamera ve mikrofonu yeniden başlat
+                    localStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: true
+                    });
+                    
+                    // Yerel video elementini güncelle
+                    document.getElementById('video-local').srcObject = localStream;
+                    
+                    // Tüm bağlantıları güncelle
+                    Object.keys(peers).forEach(peerId => {
+                        const sender = peers[peerId].getSenders().find(s => s.track.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(localStream.getVideoTracks()[0]);
+                        }
+                    });
+                    
+                    screenShareToggle.classList.remove('active');
+                    screenShareToggle.innerHTML = '<i class="fas fa-desktop"></i>';
+                } else {
+                    // Ekran paylaşımını başlat
+                    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true
+                    });
+                    
+                    // Ekran paylaşımı durdurulduğunda
+                    screenStream.getVideoTracks()[0].onended = async () => {
+                        await toggleScreenShare();
+                    };
+                    
+                    // Video izini değiştir
+                    const videoTrack = screenStream.getVideoTracks()[0];
+                    
+                    // Yerel video elementini güncelle
+                    document.getElementById('video-local').srcObject = new MediaStream([videoTrack]);
+                    
+                    // Tüm bağlantıları güncelle
+                    Object.keys(peers).forEach(peerId => {
+                        const sender = peers[peerId].getSenders().find(s => s.track.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(videoTrack);
+                        }
+                    });
+                    
+                    screenShareToggle.classList.add('active');
+                    screenShareToggle.innerHTML = '<i class="fas fa-stop"></i>';
+                }
+            } catch (error) {
+                console.error('Ekran paylaşımı hatası:', error);
+            }
+        }
+
+        // Görüşmeyi sonlandırır
+        function hangup() {
+            socket.emit('leave_room', { oda_id: roomId });
+            
+            // Tüm bağlantıları kapat
+            Object.keys(peers).forEach(peerId => {
+                peers[peerId].close();
+                document.getElementById(`video-${peerId}`)?.remove();
+            });
+            
+            // Yerel medya akışını durdur
+            localStream.getTracks().forEach(track => track.stop());
+            
+            // Ana sayfaya yönlendir
+            window.location.href = '/';
+        }
+
+        // Oda ID'sini panoya kopyalar
+        function copyRoomId() {
+            navigator.clipboard.writeText(roomId).then(() => {
+                alert('Oda ID\'si panoya kopyalandı!');
+            }).catch(err => {
+                console.error('Kopyalama hatası:', err);
+            });
+        }
+
+        // Sayfa kapatıldığında temizlik yap
+        window.onbeforeunload = () => {
+            socket?.emit('leave_room', { oda_id: roomId });
+            localStream?.getTracks().forEach(track => track.stop());
+        };
+    </script>
+</body>
+</html> 
