@@ -2,9 +2,9 @@
   "name": "python-zoom-klonu",
   "version": "1.0.0",
   "description": "Python Flask WebRTC tabanlı görüntülü konuşma uygulaması",
-  "main": "app.py",
+  "main": "server.js",
   "scripts": {
-    "start": "python app.py",
+    "start": "node server.js",
     "build": "pip install -r requirements.txt"
   },
   "engines": {
