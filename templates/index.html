@@ -3,39 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Python Zoom Klonu</title>
+    <title>ViZoom - Kurumsal Görüntülü İletişim Çözümü</title>
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        :root {
+            --primary-color: #003366;
+            --secondary-color: #004080;
+            --accent-color: #1a5286;
+            --light-color: #f5f5f5;
+            --dark-color: #333333;
+            --text-color: #444444;
+            --border-color: #dddddd;
+            --success-color: #28a745;
+        }
+        
+        html, body {
+            height: auto;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            background-color: var(--light-color);
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            color: var(--text-color);
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background-color: var(--primary-color);
+            padding: 1.5rem 0;
+            color: white;
+            border-bottom: 5px solid var(--accent-color);
+            width: 100%;
+        }
+        
+        .logo {
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        
+        .logo span {
+            color: #ffffff;
+            font-weight: 300;
+        }
+        
+        .tagline {
+            font-size: 1rem;
+            font-weight: 400;
+            opacity: 0.85;
+            margin-top: 0.5rem;
+        }
+        
+        .section-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .feature-card {
+            background-color: white;
+            border-radius: 4px;
+            padding: 1.5rem;
+            height: 100%;
+            border: 1px solid var(--border-color);
+            transition: box-shadow 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+        
+        .feature-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-icon {
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+        
+        .action-card {
+            background-color: white;
+            border-radius: 4px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 3px;
+            font-weight: 500;
+            padding: 0.5rem 1.5rem;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        .btn-success {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+            border-radius: 3px;
+            font-weight: 500;
+            padding: 0.5rem 1.5rem;
+        }
+        
+        .form-control {
+            border-radius: 3px;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 1.5rem 0;
+        }
+        
+        .divider::before, 
+        .divider::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .divider-text {
+            padding: 0 1rem;
+            color: #777;
+        }
+        
+        .footer {
+            margin-top: auto;
+            padding: 1.5rem 0;
+            background-color: var(--dark-color);
+            color: white;
+            width: 100%;
+        }
+        
+        .main-content {
+            padding: 3rem 0;
+            flex: 1 0 auto;
+        }
+        
+        /* Ek içerik için stil */
+        .testimonials {
+            padding: 2rem 0 3rem;
+            background-color: #f9f9f9;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            margin: 2rem 0;
+        }
+        
+        .testimonial-card {
+            background-color: white;
+            border-radius: 4px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            height: 100%;
+            position: relative;
+        }
+        
+        .testimonial-card::before {
+            content: '\201C';
+            font-size: 4rem;
+            position: absolute;
+            top: -0.5rem;
+            left: 1rem;
+            color: #e0e0e0;
+            font-family: serif;
+        }
+        
+        .client-info {
+            display: flex;
+            align-items: center;
+            margin-top: 1rem;
+        }
+        
+        .client-image {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .stats-section {
+            padding: 3rem 0;
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .stat-item {
+            padding: 1.5rem;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-6">
-                <div class="card shadow">
-                    <div class="card-header bg-primary text-white">
-                        <h2 class="text-center">Python Zoom Klonu</h2>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="logo">Vi<span>Zoom</span></h1>
+                    <p class="tagline">Kurumsal görüntülü iletişim çözümü</p>
+                </div>
+                <div class="col-md-6 text-end d-none d-md-block">
+                    <p class="mb-0"><i class="fas fa-headset me-2"></i>7/24 Teknik Destek</p>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="main-content">
+        <div class="container">
+            <!-- Features Section -->
+            <h2 class="section-title">Neden ViZoom?</h2>
+            <div class="row mb-5">
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h4>Güvenli İletişim</h4>
+                        <p>Gelişmiş şifreleme teknolojisiyle kurumsal verileriniz her zaman güvende.</p>
                     </div>
-                    <div class="card-body">
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <h4>Yüksek Kalite</h4>
+                        <p>Düşük bant genişliğinde bile kesintisiz ve yüksek kaliteli görüntülü iletişim.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h4>Çoklu Kullanıcı Desteği</h4>
+                        <p>Ekibiniz ve müşterilerinizle sorunsuz çoklu konferans imkanı.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Section -->
+            <h2 class="section-title">Toplantı Oluşturun</h2>
+            <div class="row justify-content-center mb-5">
+                <div class="col-md-8">
+                    <div class="action-card">
                         <div class="d-grid gap-3">
                             <form action="/oda-olustur" method="post">
-                                <button type="submit" class="btn btn-success btn-lg w-100">Yeni Toplantı Oluştur</button>
+                                <button type="submit" class="btn btn-success btn-lg w-100">
+                                    <i class="fas fa-plus-circle me-2"></i>Yeni Toplantı Oluştur
+                                </button>
                             </form>
                             
-                            <div class="text-center my-3">
-                                <strong>veya</strong>
+                            <div class="divider">
+                                <span class="divider-text">veya</span>
                             </div>
                             
                             <div class="input-group">
                                 <input type="text" id="odaId" class="form-control" placeholder="Toplantı ID'si girin">
-                                <button onclick="katilToplanti()" class="btn btn-primary">Katıl</button>
+                                <button onclick="katilToplanti()" class="btn btn-primary">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Katıl
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Stats Section -->
+            <div class="stats-section">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-4 stat-item">
+                            <div class="stat-number">10,000+</div>
+                            <div class="stat-label">Aktif Kullanıcı</div>
+                        </div>
+                        <div class="col-md-4 stat-item">
+                            <div class="stat-number">5,000+</div>
+                            <div class="stat-label">Günlük Toplantı</div>
+                        </div>
+                        <div class="col-md-4 stat-item">
+                            <div class="stat-number">99.9%</div>
+                            <div class="stat-label">Hizmet Sürekliliği</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Testimonials Section -->
+            <h2 class="section-title">Müşteri Yorumları</h2>
+            <div class="testimonials">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <div class="testimonial-card">
+                                <p>"ViZoom ile toplantılarımız daha verimli ve güvenli hale geldi. Özellikle müşterilerimizle görüşmelerimizde harika sonuçlar alıyoruz."</p>
+                                <div class="client-info">
+                                    <div class="client-image">AT</div>
+                                    <div>
+                                        <h5 class="mb-0">Ahmet Türk</h5>
+                                        <small>Finans Müdürü, XYZ Bank</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="testimonial-card">
+                                <p>"Uzaktan çalışma sürecimizde ViZoom olmazsa olmazımız oldu. Kolay kullanımı ve güvenilirliği ile fark yaratıyor."</p>
+                                <div class="client-info">
+                                    <div class="client-image">MY</div>
+                                    <div>
+                                        <h5 class="mb-0">Merve Yılmaz</h5>
+                                        <small>İK Direktörü, ABC Holding</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="testimonial-card">
+                                <p>"Hibrit çalışma modelimizde ViZoom'un sağladığı kesintisiz iletişim sayesinde ekip bağlılığımızı koruduk ve verimliliğimizi artırdık."</p>
+                                <div class="client-info">
+                                    <div class="client-image">CK</div>
+                                    <div>
+                                        <h5 class="mb-0">Can Kara</h5>
+                                        <small>CEO, Teknoloji A.Ş.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Enterprise Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="feature-card text-center">
+                        <h3 class="mb-3">Kurumsal Çözümler</h3>
+                        <p class="mb-0">Şirketinizin ihtiyaçlarına özel ViZoom kurumsal paketleri hakkında bilgi almak için bizimle iletişime geçin.</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0">© 2025 ViZoom. Tüm hakları saklıdır.</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <p class="mb-0">Güvenli ve Profesyonel İletişim Çözümü</p>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script>
         function katilToplanti() {
