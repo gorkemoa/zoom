@@ -55,8 +55,15 @@
         const peerConfig = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                { urls: 'stun:stun.ekiga.net' },
+                { urls: 'stun:stun.ideasip.com' },
+                { urls: 'stun:stun.schlund.de' }
+            ],
+            iceCandidatePoolSize: 10
         };
 
         // Sayfanın yüklenmesini bekleyelim
@@ -119,17 +126,29 @@
 
         // Yeni bir kullanıcıyla bağlantı kurar
         function connectToNewUser(userId) {
+            console.log(`${userId} kullanıcısına bağlanmaya çalışılıyor...`);
             const peerConnection = new RTCPeerConnection(peerConfig);
             peers[userId] = peerConnection;
 
+            // Bağlantı durumu değişikliklerini izle
+            peerConnection.onconnectionstatechange = (event) => {
+                console.log(`Bağlantı durumu (${userId}): ${peerConnection.connectionState}`);
+            };
+
+            peerConnection.onicecandidateerror = (event) => {
+                console.error(`ICE Aday Hatası (${userId}):`, event);
+            };
+
             // Yerel medya akışını peer bağlantısına ekleyelim
             localStream.getTracks().forEach(track => {
+                console.log(`Yerel ${track.kind} izi ekleniyor...`);
                 peerConnection.addTrack(track, localStream);
             });
 
             // ICE aday olayını dinleyelim
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
+                    console.log(`ICE adayı gönderiliyor (${userId})`);
                     socket.emit('signal', {
                         to: userId,
                         signal: {
@@ -142,6 +161,7 @@
 
             // Uzak akış olayını dinleyelim
             peerConnection.ontrack = (event) => {
+                console.log(`Uzak medya akışı alındı (${userId})`);
                 if (!document.getElementById(`video-${userId}`)) {
                     createVideoElement(userId, event.streams[0], false);
                 }
@@ -149,8 +169,12 @@
 
             // Teklif oluşturalım ve gönderelim
             peerConnection.createOffer()
-                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(offer => {
+                    console.log(`Teklif oluşturuldu (${userId})`);
+                    return peerConnection.setLocalDescription(offer);
+                })
                 .then(() => {
+                    console.log(`Teklif gönderiliyor (${userId})`);
                     socket.emit('signal', {
                         to: userId,
                         signal: {
@@ -159,25 +183,34 @@
                         }
                     });
                 })
-                .catch(error => console.error('Teklif oluşturma hatası:', error));
+                .catch(error => console.error(`Teklif oluşturma hatası (${userId}):`, error));
         }
 
         // Sinyalleşme işlemlerini yönetir
         function handleSignaling(data) {
             const fromUserId = data.from;
             const signal = data.signal;
+            console.log(`${fromUserId} kullanıcısından sinyal alındı:`, signal.type);
 
             if (!peers[fromUserId]) {
+                console.log(`${fromUserId} için yeni peer bağlantısı oluşturuluyor`);
                 peers[fromUserId] = new RTCPeerConnection(peerConfig);
+
+                // Bağlantı durumu değişikliklerini izle
+                peers[fromUserId].onconnectionstatechange = (event) => {
+                    console.log(`Bağlantı durumu (${fromUserId}): ${peers[fromUserId].connectionState}`);
+                };
 
                 // Yerel medya akışını peer bağlantısına ekleyelim
                 localStream.getTracks().forEach(track => {
+                    console.log(`Yerel ${track.kind} izi ekleniyor...`);
                     peers[fromUserId].addTrack(track, localStream);
                 });
 
                 // ICE aday olayını dinleyelim
                 peers[fromUserId].onicecandidate = (event) => {
                     if (event.candidate) {
+                        console.log(`ICE adayı gönderiliyor (${fromUserId})`);
                         socket.emit('signal', {
                             to: fromUserId,
                             signal: {
@@ -190,6 +223,7 @@
 
                 // Uzak akış olayını dinleyelim
                 peers[fromUserId].ontrack = (event) => {
+                    console.log(`Uzak medya akışı alındı (${fromUserId})`);
                     if (!document.getElementById(`video-${fromUserId}`)) {
                         createVideoElement(fromUserId, event.streams[0], false);
                     }
@@ -198,10 +232,18 @@
 
             // Sinyal tipine göre işlem yapalım
             if (signal.type === 'offer') {
+                console.log(`${fromUserId} teklifini ayarlıyorum`);
                 peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                    .then(() => peers[fromUserId].createAnswer())
-                    .then(answer => peers[fromUserId].setLocalDescription(answer))
                     .then(() => {
+                        console.log(`${fromUserId} teklifine cevap oluşturuyorum`);
+                        return peers[fromUserId].createAnswer();
+                    })
+                    .then(answer => {
+                        console.log(`Yerel açıklamayı ayarlıyorum (cevap)`);
+                        return peers[fromUserId].setLocalDescription(answer);
+                    })
+                    .then(() => {
+                        console.log(`${fromUserId} kullanıcısına cevap gönderiyorum`);
                         socket.emit('signal', {
                             to: fromUserId,
                             signal: {
@@ -210,15 +252,17 @@
                             }
                         });
                     })
-                    .catch(error => console.error('Cevap oluşturma hatası:', error));
+                    .catch(error => console.error(`Cevap oluşturma hatası (${fromUserId}):`, error));
             }
             else if (signal.type === 'answer') {
+                console.log(`${fromUserId} cevabını ayarlıyorum`);
                 peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                    .catch(error => console.error('Uzak açıklama ayarlama hatası:', error));
+                    .catch(error => console.error(`Uzak açıklama ayarlama hatası (${fromUserId}):`, error));
             }
             else if (signal.type === 'ice-candidate') {
+                console.log(`${fromUserId} ICE adayını ekliyorum`);
                 peers[fromUserId].addIceCandidate(new RTCIceCandidate(signal.candidate))
-                    .catch(error => console.error('ICE aday ekleme hatası:', error));
+                    .catch(error => console.error(`ICE aday ekleme hatası (${fromUserId}):`, error));
             }
         }
 

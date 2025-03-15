@@ -105,6 +105,8 @@ def handle_signal(data):
     to_user = data['to']
     emit('signal', {'from': request.sid, 'signal': data['signal']}, room=to_user)
 
+# Bu satır gunicorn ile birlikte çalışmak için önemli
+# Gunicorn WSGI uygulama adını 'app' olarak bekliyor
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     print(f"Sunucu http://localhost:{port} adresinde çalışıyor")
