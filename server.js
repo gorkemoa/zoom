@@ -16,14 +16,30 @@ const PEER_PORT = process.env.PEER_PORT || 3001;
 // PeerJS sunucusu
 let peerServer;
 try {
-  peerServer = PeerServer({ port: PEER_PORT, path: '/' });
-  console.log(`PeerJS sunucusu port ${PEER_PORT}'de çalışıyor`);
+  // Üretim ortamında (Render.com) PeerJS sunucusunu Express üzerinden çalıştır
+  if (process.env.NODE_ENV === 'production') {
+    // Main Express uygulaması üzerinde PeerJS sunucusunu çalıştır
+    app.use('/peerjs', require('peer').ExpressPeerServer(server, {
+      debug: true,
+      path: '/'
+    }));
+    console.log('PeerJS sunucusu Express üzerinde /peerjs path ile çalışıyor');
+  } else {
+    // Geliştirme ortamında ayrı bir port üzerinde çalıştır
+    peerServer = PeerServer({ port: PEER_PORT, path: '/' });
+    console.log(`PeerJS sunucusu port ${PEER_PORT}'de çalışıyor`);
+  }
 } catch (err) {
   console.error('PeerJS port hatası, alternatif port deneniyor:', err.message);
   // Alternatif port dene
   try {
-    peerServer = PeerServer({ port: PEER_PORT + 1, path: '/' });
-    console.log(`PeerJS sunucusu alternatif port ${PEER_PORT + 1}'de çalışıyor`);
+    if (process.env.NODE_ENV === 'production') {
+      // Üretim ortamında hata olursa log kaydet
+      console.error('PeerJS Express üzerinde başlatılamadı:', err.message);
+    } else {
+      peerServer = PeerServer({ port: PEER_PORT + 1, path: '/' });
+      console.log(`PeerJS sunucusu alternatif port ${PEER_PORT + 1}'de çalışıyor`);
+    }
   } catch (err2) {
     console.error('PeerJS sunucusu başlatılamadı:', err2.message);
   }

@@ -1,5 +1,10 @@
 // Oda ve bağlantı bilgileri
-const socket = io('/');
+const socketOptions = {
+  // Üretim ortamında path ve transport seçeneklerini belirtelim
+  path: '/socket.io',
+  transports: ['websocket', 'polling']
+};
+const socket = io('/', socketOptions);
 const videoContainer = document.getElementById('videoContainer');
 const chatMessages = document.getElementById('chatMessages');
 const messageInput = document.getElementById('messageInput');
@@ -21,8 +26,12 @@ const userId = generateRandomId();
 
 // PeerJS bağlantı ayarları
 let peerConfig = {
-  host: '/',
-  port: 3001,  // Varsayılan port
+  // Eğer üretim ortamındaysak host olarak render.com domain'ini kullan
+  host: window.location.hostname === 'localhost' ? '/' : window.location.hostname,
+  // Localhost'ta ise 3001, değilse 443 (HTTPS için standart port)
+  port: window.location.hostname === 'localhost' ? 3001 : 443,
+  secure: window.location.hostname !== 'localhost', // Üretim ortamında HTTPS kullan
+  path: '/peerjs', // PeerJS sunucusu için path
   debug: 3,
   retryDelay: 3000,
   retry: true
@@ -31,7 +40,8 @@ let peerConfig = {
 // Alternatif port denemesi
 function tryAlternativePeerPort() {
   console.log('Alternatif PeerJS portuna bağlanılıyor...');
-  peerConfig.port = 3002;  // Alternatif port
+  // Localhost'ta ise alternatif port 3002, değilse hala 443 kullan
+  peerConfig.port = window.location.hostname === 'localhost' ? 3002 : 443;
   return new Peer(undefined, peerConfig);
 }
 
@@ -79,19 +89,41 @@ const peers = {};
 // Görüntü düzenini optimize et
 function optimizeLayout() {
   const videos = document.querySelectorAll('.video-item');
+  const myVideo = document.querySelector('.my-video');
   
-  // Tek bir video varsa (sadece sen) tam ekran yap
+  // Katılımcı sayısına göre layout ayarla
   if (videos.length === 1) {
+    // Sadece kendisi varsa
     videos[0].style.width = '100%';
     videos[0].style.maxHeight = 'calc(100vh - 180px)';
     videoContainer.style.gridTemplateColumns = '1fr';
+  } else if (videos.length === 2) {
+    // Kendisi ve bir karşı taraf varsa (ikili görüşme)
+    videoContainer.style.gridTemplateColumns = '1fr 1fr';
+    videos.forEach(video => {
+      video.style.width = '100%';
+      if (video.classList.contains('my-video')) {
+        // Kendi görüntüsü daha küçük
+        video.style.width = '100%';
+        video.style.maxHeight = 'calc(50vh - 100px)';
+      } else {
+        // Karşı tarafın görüntüsü daha büyük
+        video.style.width = '100%';
+        video.style.maxHeight = 'calc(70vh - 100px)';
+      }
+    });
   } else {
-    // Normal grid düzeni
+    // İkiden fazla katılımcı varsa grid layout
+    videoContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
     videos.forEach(video => {
       video.style.width = '';
       video.style.maxHeight = '';
     });
-    videoContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+    
+    // Kendi görüntüsünü her zaman sol üst köşede tut
+    if (myVideo) {
+      videoContainer.insertBefore(myVideo, videoContainer.firstChild);
+    }
   }
 }
 

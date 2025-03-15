@@ -45,6 +45,8 @@
   padding: 1rem;
   overflow: auto;
   height: calc(100vh - 130px);
+  align-items: center;
+  justify-content: center;
 }
 
 /* Tek başınaysak geniş video */
@@ -60,34 +62,44 @@
   max-height: calc(100vh - 180px);
 }
 
+/* Video ögesi */
 .video-item {
   position: relative;
-  width: 100%;
-  background-color: #333;
+  background: #000;
   border-radius: 8px;
   overflow: hidden;
-  aspect-ratio: 16/9;
+  box-shadow: var(--shadow);
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   transition: all 0.3s ease;
 }
 
-/* Kullanıcının kendi videosu için özel stil */
+/* Kendi videon */
 .video-item.my-video {
-  border: 3px solid var(--primary-color);
-  box-shadow: 0 0 10px rgba(45, 140, 255, 0.5);
+  border: 2px solid var(--primary-color);
+  position: relative;
 }
 
-/* Tek başınayken kendinizi daha iyi görebilmek için */
-.video-container:has(.my-video:only-child) .my-video {
-  width: 100%;
-  height: calc(100vh - 200px);
-  max-width: 1200px;
-  margin: 0 auto;
+/* İkili görüşme düzeni */
+.video-container:has(.video-item:nth-child(2)) .video-item.my-video {
+  grid-column: 1;
+  border: 2px solid var(--primary-color);
+  z-index: 2;
+}
+
+.video-container:has(.video-item:nth-child(2)) .video-item:not(.my-video) {
+  grid-column: 2;
+  border: 2px solid var(--secondary-color);
+  z-index: 1;
 }
 
 .video-item video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .video-item .participant-name {
