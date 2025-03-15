@@ -180,6 +180,50 @@
         .connection-status.closed {
             background-color: rgba(231, 76, 60, 0.7);
         }
+        
+        /* Kalite menüsü için stil */
+        .quality-menu {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background-color: #333;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            width: 200px;
+            padding: 10px 0;
+            z-index: 100;
+            display: none;
+        }
+        
+        .quality-menu.visible {
+            display: block;
+        }
+        
+        .quality-menu-header {
+            padding: 8px 16px;
+            font-weight: bold;
+            color: white;
+            border-bottom: 1px solid #444;
+            margin-bottom: 5px;
+        }
+        
+        .quality-option {
+            padding: 8px 16px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .quality-option:hover {
+            background-color: #444;
+        }
+        
+        /* Quality indicator */
+        .quality-indicator {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -198,12 +242,27 @@
             <div class="control-button" id="screenShareToggle">
                 <i class="fas fa-desktop"></i>
             </div>
+            <div class="control-button" id="qualityToggle">
+                <i class="fas fa-cog"></i>
+            </div>
             <div class="control-button" id="hangupButton">
                 <i class="fas fa-phone-slash"></i>
             </div>
             <div class="room-info">
                 Oda ID: <span id="roomIdDisplay">{{ oda_id }}</span>
                 <button class="copy-button" onclick="copyRoomId()"><i class="fas fa-copy"></i></button>
+            </div>
+        </div>
+        
+        <!-- Kalite ayarları menüsü -->
+        <div class="quality-menu" id="qualityMenu">
+            <div class="quality-menu-header">Video Kalitesi</div>
+            <div class="quality-option" onclick="changeVideoQuality('low')">Düşük</div>
+            <div class="quality-option" onclick="changeVideoQuality('medium')">Orta</div>
+            <div class="quality-option" onclick="changeVideoQuality('high')">Yüksek</div>
+            <div class="quality-option" onclick="toggleAutomaticQuality()">
+                <span>Otomatik</span>
+                <input type="checkbox" id="autoQualityToggle" checked>
             </div>
         </div>
     </div>
@@ -255,14 +314,40 @@
             iceCandidatePoolSize: 10
         };
 
+        // Video kalitesi yapılandırması
+        let videoQualitySettings = {
+            low: {
+                width: { ideal: 320, max: 640 },
+                height: { ideal: 240, max: 480 },
+                frameRate: { ideal: 15, max: 20 },
+                facingMode: 'user'
+            },
+            medium: {
+                width: { ideal: 640, max: 1280 },
+                height: { ideal: 480, max: 720 },
+                frameRate: { ideal: 24, max: 30 },
+                facingMode: 'user'
+            },
+            high: {
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 30, max: 60 },
+                facingMode: 'user'
+            }
+        };
+
+        // Mevcut video kalitesi seviyesi
+        let currentQualityLevel = 'medium';
+        
+        // Bağlantı hızını ölçmek için değişkenler
+        let lastConnectionCheck = 0;
+        let connectionQualityCheckInterval = null;
+
         // Sayfanın yüklenmesini bekleyelim
         window.onload = async function() {
             try {
-                // Kullanıcının kamera ve mikrofon erişimini isteyelim
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: true
-                });
+                // Önce orta kalitede başla
+                await startVideoWithQuality(currentQualityLevel);
                 
                 // Yerel video akışını ekrana ekleyelim
                 createVideoElement('local', localStream, true);
@@ -291,9 +376,8 @@
                 socket.on('user_left', (data) => {
                     console.log('Kullanıcı ayrıldı:', data.user_id);
                     if (peers[data.user_id]) {
-                        document.getElementById(`video-${data.user_id}`)?.remove();
-                        peers[data.user_id].close();
-                        delete peers[data.user_id];
+                        // Düzgün temizlik için cleanup fonksiyonunu çağıralım
+                        cleanup(data.user_id);
                     }
                 });
 
@@ -306,6 +390,21 @@
                 videoToggle.addEventListener('click', toggleVideo);
                 screenShareToggle.addEventListener('click', toggleScreenShare);
                 hangupButton.addEventListener('click', hangup);
+                
+                // Kalite ayarları menüsü
+                const qualityToggle = document.getElementById('qualityToggle');
+                const qualityMenu = document.getElementById('qualityMenu');
+                
+                qualityToggle.addEventListener('click', () => {
+                    qualityMenu.classList.toggle('visible');
+                });
+                
+                // Menü dışına tıklandığında menüyü kapat
+                document.addEventListener('click', (event) => {
+                    if (!qualityMenu.contains(event.target) && event.target !== qualityToggle) {
+                        qualityMenu.classList.remove('visible');
+                    }
+                });
 
             } catch (error) {
                 console.error('Kamera veya mikrofon erişiminde hata:', error);
@@ -642,6 +741,9 @@
                 // Bağlantı durumunu göster
                 if (state === 'connected' || state === 'completed') {
                     updateConnectionStatus(userId, 'connected');
+                    
+                    // Bağlantı kurulduğunda otomatik kalite kontrolünü başlat
+                    startConnectionQualityCheck();
                 } else if (state === 'checking') {
                     updateConnectionStatus(userId, 'connecting');
                 } else if (state === 'disconnected') {
@@ -1044,6 +1146,244 @@
             }
             
             console.log(`Görünüm güncellendi: ${totalVideos} kullanıcı`);
+        }
+
+        // Belirli bir kalite seviyesinde video akışı başlatır
+        async function startVideoWithQuality(qualityLevel) {
+            try {
+                // Önceki akışı temizle
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                
+                console.log(`Video kalitesi ${qualityLevel} seviyesinde başlatılıyor`);
+                
+                // Yeni kamera ve mikrofon akışını başlat
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: videoQualitySettings[qualityLevel],
+                    audio: true
+                });
+                
+                // Yerel video elementini güncelle
+                const localVideo = document.getElementById('video-local');
+                if (localVideo) {
+                    localVideo.srcObject = localStream;
+                }
+                
+                // Tüm bağlantıları güncelle
+                Object.keys(peers).forEach(userId => {
+                    // Eski gönderileri bul ve kaldır
+                    const senders = peers[userId].getSenders();
+                    
+                    // Yeni izleri ekle
+                    localStream.getTracks().forEach(track => {
+                        const sender = senders.find(s => s.track && s.track.kind === track.kind);
+                        if (sender) {
+                            // Var olan gönderici varsa, izi değiştir
+                            console.log(`${userId} için ${track.kind} izi güncelleniyor`);
+                            sender.replaceTrack(track);
+                        } else {
+                            // Yoksa yeni gönderici ekle
+                            console.log(`${userId} için yeni ${track.kind} izi ekleniyor`);
+                            peers[userId].addTrack(track, localStream);
+                        }
+                    });
+                });
+                
+                // Düğmeleri güncelle
+                if (micToggle) {
+                    micToggle.innerHTML = '<i class="fas fa-microphone"></i>';
+                    localAudioEnabled = true;
+                }
+                
+                if (videoToggle) {
+                    videoToggle.innerHTML = '<i class="fas fa-video"></i>';
+                    localVideoEnabled = true;
+                }
+                
+                // Kalite seviyesini kaydet
+                currentQualityLevel = qualityLevel;
+                
+                // Kalite bilgisini göster
+                showQualityIndicator(qualityLevel);
+                
+                return localStream;
+            } catch (error) {
+                console.error(`Video kalitesi ${qualityLevel} başlatılamadı:`, error);
+                
+                // Hata durumunda daha düşük kaliteye düş
+                if (qualityLevel !== 'low' && error.name === 'OverconstrainedError') {
+                    console.log('Daha düşük kalite deneniyor...');
+                    return startVideoWithQuality('low');
+                }
+                
+                throw error;
+            }
+        }
+        
+        // Bağlantı kalitesini kontrol eder ve gerekirse video kalitesini ayarlar
+        function startConnectionQualityCheck() {
+            // Zaten çalışıyorsa tekrar başlatma
+            if (connectionQualityCheckInterval) return;
+            
+            console.log('Bağlantı kalitesi kontrolü başlatılıyor');
+            
+            connectionQualityCheckInterval = setInterval(async () => {
+                // İstatistikleri al ve bağlantı hızını ölç
+                try {
+                    // En az bir peer bağlantısı olmalı
+                    const userIds = Object.keys(peers);
+                    if (userIds.length === 0) return;
+                    
+                    // İlk peer bağlantısının istatistiklerini al
+                    const stats = await peers[userIds[0]].getStats();
+                    let bytesReceived = 0;
+                    let bytesSent = 0;
+                    let timestamp = 0;
+                    
+                    // İstatistikleri analiz et
+                    stats.forEach(report => {
+                        if (report.type === 'transport') {
+                            bytesReceived += report.bytesReceived || 0;
+                            bytesSent += report.bytesSent || 0;
+                            timestamp = report.timestamp;
+                        }
+                    });
+                    
+                    if (lastConnectionCheck) {
+                        const timeDiff = (timestamp - lastConnectionCheck) / 1000; // saniye
+                        if (timeDiff > 0) {
+                            // Gönderme bant genişliği (kbps)
+                            const uploadSpeed = ((bytesSent - lastConnectionCheck.bytesSent) * 8) / timeDiff / 1000;
+                            
+                            console.log(`Ölçülen yükleme hızı: ${uploadSpeed.toFixed(2)} kbps`);
+                            
+                            // Kalite seviyesini hıza göre ayarla
+                            let newQualityLevel = currentQualityLevel;
+                            
+                            if (uploadSpeed < 500) { // 500 kbps altı
+                                newQualityLevel = 'low';
+                            } else if (uploadSpeed >= 500 && uploadSpeed < 1500) { // 500-1500 kbps arası
+                                newQualityLevel = 'medium';
+                            } else if (uploadSpeed >= 1500) { // 1.5 Mbps üstü
+                                newQualityLevel = 'high';
+                            }
+                            
+                            // Sadece kalite değişecekse uygula
+                            if (newQualityLevel !== currentQualityLevel) {
+                                console.log(`Bağlantı hızı: ${uploadSpeed.toFixed(2)} kbps, kalite ${currentQualityLevel} -> ${newQualityLevel} olarak değiştiriliyor`);
+                                await startVideoWithQuality(newQualityLevel);
+                            }
+                        }
+                    }
+                    
+                    // Son kontrol bilgilerini kaydet
+                    lastConnectionCheck = {
+                        bytesReceived,
+                        bytesSent,
+                        timestamp
+                    };
+                    
+                } catch (error) {
+                    console.error('Bağlantı hızı kontrolü hatası:', error);
+                }
+            }, 10000); // Her 10 saniyede bir kontrol et
+        }
+        
+        // Kalite göstergesini ekranda gösterir
+        function showQualityIndicator(qualityLevel) {
+            // Mevcut göstergeyi kontrol et
+            let indicator = document.getElementById('quality-indicator');
+            
+            // Yoksa oluştur
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'quality-indicator';
+                indicator.style.position = 'absolute';
+                indicator.style.top = '10px';
+                indicator.style.right = '10px';
+                indicator.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                indicator.style.color = 'white';
+                indicator.style.padding = '5px 10px';
+                indicator.style.borderRadius = '4px';
+                indicator.style.fontSize = '12px';
+                indicator.style.zIndex = '1000';
+                indicator.style.transition = 'opacity 0.5s';
+                
+                // Belirli bir süre sonra göstergeyi gizle
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                }, 3000);
+                
+                // Hover olunca tekrar göster
+                indicator.onmouseenter = () => {
+                    indicator.style.opacity = '1';
+                };
+                
+                indicator.onmouseleave = () => {
+                    indicator.style.opacity = '0';
+                };
+                
+                document.body.appendChild(indicator);
+            }
+            
+            // İçeriği güncelle
+            let qualityText = '';
+            let colorClass = '';
+            
+            switch (qualityLevel) {
+                case 'low':
+                    qualityText = 'Düşük Kalite';
+                    colorClass = 'quality-low';
+                    indicator.style.backgroundColor = 'rgba(231, 76, 60, 0.7)';
+                    break;
+                case 'medium':
+                    qualityText = 'Orta Kalite';
+                    colorClass = 'quality-medium';
+                    indicator.style.backgroundColor = 'rgba(241, 196, 15, 0.7)';
+                    break;
+                case 'high':
+                    qualityText = 'Yüksek Kalite';
+                    colorClass = 'quality-high';
+                    indicator.style.backgroundColor = 'rgba(46, 204, 113, 0.7)';
+                    break;
+            }
+            
+            indicator.textContent = qualityText;
+            indicator.className = `quality-indicator ${colorClass}`;
+            indicator.style.opacity = '1';
+        }
+        
+        // Manuel olarak video kalitesini değiştirmek için
+        function changeVideoQuality(qualityLevel) {
+            if (videoQualitySettings[qualityLevel]) {
+                startVideoWithQuality(qualityLevel)
+                    .then(() => {
+                        console.log(`Video kalitesi manuel olarak ${qualityLevel} seviyesine ayarlandı`);
+                    })
+                    .catch(error => {
+                        console.error(`Manuel video kalitesi değiştirme hatası:`, error);
+                    });
+            }
+        }
+
+        // Otomatik kalite ayarını açıp kapatır
+        let automaticQualityEnabled = true;
+        
+        function toggleAutomaticQuality() {
+            automaticQualityEnabled = !automaticQualityEnabled;
+            document.getElementById('autoQualityToggle').checked = automaticQualityEnabled;
+            
+            if (automaticQualityEnabled) {
+                console.log('Otomatik kalite ayarı etkinleştirildi');
+                startConnectionQualityCheck();
+            } else {
+                console.log('Otomatik kalite ayarı devre dışı bırakıldı');
+                if (connectionQualityCheckInterval) {
+                    clearInterval(connectionQualityCheckInterval);
+                    connectionQualityCheckInterval = null;
+                }
+            }
         }
     </script>
 </body>
