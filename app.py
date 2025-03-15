@@ -102,8 +102,15 @@ def handle_leave_room(data):
 # WebRTC sinyal mesajlarını ilet
 @socketio.on('signal')
 def handle_signal(data):
+    from_user = request.sid
     to_user = data['to']
-    emit('signal', {'from': request.sid, 'signal': data['signal']}, room=to_user)
+    
+    # Kullanıcı kendisine sinyal göndermeye çalışıyorsa engelle
+    if from_user == to_user:
+        print(f"HATA: Kullanıcı kendisine sinyal göndermeye çalışıyor: {from_user}")
+        return
+        
+    emit('signal', {'from': from_user, 'signal': data['signal']}, room=to_user)
 
 # Bu satır gunicorn ile birlikte çalışmak için önemli
 # Gunicorn WSGI uygulama adını 'app' olarak bekliyor

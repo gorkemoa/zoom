@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Toplantı - Python Zoom Klonu</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -127,14 +128,38 @@
         // Yeni bir kullanıcıyla bağlantı kurar
         function connectToNewUser(userId) {
             console.log(`${userId} kullanıcısına bağlanmaya çalışılıyor...`);
+            
+            // Eğer bu kullanıcı ile zaten bir bağlantı varsa, kullanmayalım
+            if (peers[userId]) {
+                console.log(`${userId} ile zaten bir bağlantı var, yenisi oluşturulmuyor.`);
+                return;
+            }
+            
             const peerConnection = new RTCPeerConnection(peerConfig);
             peers[userId] = peerConnection;
+            
+            // Bekleyen ICE adayları için dizi oluştur
+            peers[userId]._pendingIceCandidates = [];
+            
+            // Teklif oluşturup oluşturmadığımızı izleyen bayrak
+            peers[userId]._isInitiator = true;
 
             // Bağlantı durumu değişikliklerini izle
             peerConnection.onconnectionstatechange = (event) => {
                 console.log(`Bağlantı durumu (${userId}): ${peerConnection.connectionState}`);
+                
+                // Bağlantı başarısız olursa temizle ve yeniden dene
+                if (peerConnection.connectionState === 'failed' || 
+                    peerConnection.connectionState === 'disconnected' ||
+                    peerConnection.connectionState === 'closed') {
+                    console.log(`${userId} ile bağlantı durumu: ${peerConnection.connectionState}. Temizleniyor.`);
+                    if (peers[userId]) {
+                        peers[userId].close();
+                        delete peers[userId];
+                    }
+                }
             };
-
+            
             peerConnection.onicecandidateerror = (event) => {
                 console.error(`ICE Aday Hatası (${userId}):`, event);
             };
@@ -186,19 +211,59 @@
                 .catch(error => console.error(`Teklif oluşturma hatası (${userId}):`, error));
         }
 
+        // Bekleyen ICE adaylarını uygula
+        function applyPendingIceCandidates(userId) {
+            if (!peers[userId] || !peers[userId]._pendingIceCandidates) return;
+            
+            const pendingCandidates = peers[userId]._pendingIceCandidates;
+            console.log(`${userId} için ${pendingCandidates.length} bekleyen ICE adayı uygulanıyor`);
+            
+            pendingCandidates.forEach(candidate => {
+                peers[userId].addIceCandidate(new RTCIceCandidate(candidate))
+                    .catch(error => console.error(`Bekleyen ICE adayı ekleme hatası (${userId}):`, error));
+            });
+            
+            // Bekleyen adayları temizle
+            peers[userId]._pendingIceCandidates = [];
+        }
+        
         // Sinyalleşme işlemlerini yönetir
         function handleSignaling(data) {
             const fromUserId = data.from;
             const signal = data.signal;
             console.log(`${fromUserId} kullanıcısından sinyal alındı:`, signal.type);
+            
+            // Kendimizden gelen sinyalleri işlemeyelim
+            if (fromUserId === socket.id) {
+                console.log("Kendimizden gelen sinyal, işlenmiyor.");
+                return;
+            }
 
+            // Peer bağlantısı yoksa oluştur
             if (!peers[fromUserId]) {
                 console.log(`${fromUserId} için yeni peer bağlantısı oluşturuluyor`);
                 peers[fromUserId] = new RTCPeerConnection(peerConfig);
+                
+                // Bekleyen ICE adayları için dizi oluştur
+                peers[fromUserId]._pendingIceCandidates = [];
+                
+                // Bu kullanıcı, teklifte bulunan taraf olmadığını işaretliyoruz
+                peers[fromUserId]._isInitiator = false;
 
                 // Bağlantı durumu değişikliklerini izle
                 peers[fromUserId].onconnectionstatechange = (event) => {
                     console.log(`Bağlantı durumu (${fromUserId}): ${peers[fromUserId].connectionState}`);
+                    
+                    // Bağlantı başarısız olursa temizle
+                    if (peers[fromUserId].connectionState === 'failed' || 
+                        peers[fromUserId].connectionState === 'disconnected' ||
+                        peers[fromUserId].connectionState === 'closed') {
+                        console.log(`${fromUserId} ile bağlantı durumu: ${peers[fromUserId].connectionState}. Temizleniyor.`);
+                        if (peers[fromUserId]) {
+                            peers[fromUserId].close();
+                            delete peers[fromUserId];
+                        }
+                    }
                 };
 
                 // Yerel medya akışını peer bağlantısına ekleyelim
@@ -233,9 +298,56 @@
             // Sinyal tipine göre işlem yapalım
             if (signal.type === 'offer') {
                 console.log(`${fromUserId} teklifini ayarlıyorum`);
+                
+                // Teklifi ayarlamadan önce bağlantı durumunu kontrol edelim
+                if (peers[fromUserId].signalingState !== 'stable') {
+                    console.log(`${fromUserId} için signaling durumu stable değil, önce kapatılıyor: ${peers[fromUserId].signalingState}`);
+                    
+                    // Collision durumunu çöz - rollback ile
+                    const isInitiator = peers[fromUserId]._isInitiator;
+                    
+                    if (isInitiator) {
+                        console.log(`${fromUserId} ile çakışma durumu, bizden daha düşük ID olduğu için rollback yapıyoruz`);
+                        return; // Bizden daha düşük ID sahibi taraf olarak çakışmada geri çekiliyoruz
+                    }
+                    
+                    peers[fromUserId].close();
+                    peers[fromUserId] = new RTCPeerConnection(peerConfig);
+                    peers[fromUserId]._pendingIceCandidates = [];
+                    peers[fromUserId]._isInitiator = false;
+                    
+                    // Yeniden track'leri ekleyelim
+                    localStream.getTracks().forEach(track => {
+                        peers[fromUserId].addTrack(track, localStream);
+                    });
+                    
+                    // Olay dinleyicileri yeniden ekleyelim
+                    peers[fromUserId].onicecandidate = (event) => {
+                        if (event.candidate) {
+                            socket.emit('signal', {
+                                to: fromUserId,
+                                signal: {
+                                    type: 'ice-candidate',
+                                    candidate: event.candidate
+                                }
+                            });
+                        }
+                    };
+                    
+                    peers[fromUserId].ontrack = (event) => {
+                        console.log(`Uzak medya akışı alındı (${fromUserId})`);
+                        if (!document.getElementById(`video-${fromUserId}`)) {
+                            createVideoElement(fromUserId, event.streams[0], false);
+                        }
+                    };
+                }
+                
                 peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
                     .then(() => {
                         console.log(`${fromUserId} teklifine cevap oluşturuyorum`);
+                        // Bekleyen ICE adaylarını ekle
+                        applyPendingIceCandidates(fromUserId);
+                        
                         return peers[fromUserId].createAnswer();
                     })
                     .then(answer => {
@@ -256,13 +368,37 @@
             }
             else if (signal.type === 'answer') {
                 console.log(`${fromUserId} cevabını ayarlıyorum`);
-                peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                    .catch(error => console.error(`Uzak açıklama ayarlama hatası (${fromUserId}):`, error));
+                
+                // Cevabı ayarlamadan önce bağlantı durumunu kontrol edelim
+                if (peers[fromUserId].signalingState === 'have-local-offer') {
+                    peers[fromUserId].setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                        .then(() => {
+                            console.log(`${fromUserId} için uzak açıklama başarıyla ayarlandı`);
+                            // Bekleyen ICE adaylarını ekle
+                            applyPendingIceCandidates(fromUserId);
+                        })
+                        .catch(error => console.error(`Uzak açıklama ayarlama hatası (${fromUserId}):`, error));
+                } else {
+                    console.warn(`${fromUserId} için cevap ayarlanamadı, mevcut durum: ${peers[fromUserId].signalingState}`);
+                }
             }
             else if (signal.type === 'ice-candidate') {
                 console.log(`${fromUserId} ICE adayını ekliyorum`);
-                peers[fromUserId].addIceCandidate(new RTCIceCandidate(signal.candidate))
-                    .catch(error => console.error(`ICE aday ekleme hatası (${fromUserId}):`, error));
+                
+                // ICE adayını sadece remoteDescription ayarlandığında ekleyelim, 
+                // aksi halde daha sonra eklenmek üzere saklayalım
+                if (peers[fromUserId] && peers[fromUserId].remoteDescription) {
+                    peers[fromUserId].addIceCandidate(new RTCIceCandidate(signal.candidate))
+                        .catch(error => console.error(`ICE aday ekleme hatası (${fromUserId}):`, error));
+                } else {
+                    console.warn(`${fromUserId} için ICE adayı eklenemedi, remoteDescription ayarlanmamış`);
+                    
+                    // ICE adaylarını daha sonra eklenmek üzere saklayalım
+                    if (!peers[fromUserId]._pendingIceCandidates) {
+                        peers[fromUserId]._pendingIceCandidates = [];
+                    }
+                    peers[fromUserId]._pendingIceCandidates.push(signal.candidate);
+                }
             }
         }
 
