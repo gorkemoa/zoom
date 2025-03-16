@@ -3,301 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ViZoom - Kurumsal Görüntülü İletişim Çözümü</title>
+    <title>Viko - Modern Görüntülü İletişim Platformu</title>
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         :root {
-            --primary-color: #003366;
-            --secondary-color: #004080;
-            --accent-color: #1a5286;
-            --light-color: #f5f5f5;
-            --dark-color: #333333;
-            --text-color: #444444;
-            --border-color: #dddddd;
-            --success-color: #28a745;
+            --primary-color: #2563eb;
+            --secondary-color: #1d4ed8;
+            --accent-color: #3b82f6;
+            --light-color: #f8fafc;
+            --dark-color: #1e293b;
+            --text-color: #334155;
+            --border-color: #e2e8f0;
+            --success-color: #22c55e;
+            --gradient-primary: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         }
-        
-        html, body {
-            height: auto;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            background-color: var(--light-color);
-            font-family: 'Arial', 'Helvetica', sans-serif;
-            color: var(--text-color);
-        }
-        
+
         body {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-color);
+            background-color: var(--light-color);
+            line-height: 1.6;
         }
-        
+
         .header {
-            background-color: var(--primary-color);
-            padding: 1.5rem 0;
-            color: white;
-            border-bottom: 5px solid var(--accent-color);
-            width: 100%;
-        }
-        
-        .logo {
-            font-size: 2rem;
-            font-weight: 600;
-            letter-spacing: -0.5px;
-        }
-        
-        .logo span {
-            color: #ffffff;
-            font-weight: 300;
-        }
-        
-        .tagline {
-            font-size: 1rem;
-            font-weight: 400;
-            opacity: 0.85;
-            margin-top: 0.5rem;
-        }
-        
-        .section-title {
-            color: var(--primary-color);
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--border-color);
-        }
-        
-        .feature-card {
-            background-color: white;
-            border-radius: 4px;
-            padding: 1.5rem;
-            height: 100%;
-            border: 1px solid var(--border-color);
-            transition: box-shadow 0.3s ease;
-            margin-bottom: 1.5rem;
-        }
-        
-        .feature-card:hover {
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .feature-icon {
-            font-size: 1.75rem;
-            margin-bottom: 1rem;
-            color: var(--primary-color);
-        }
-        
-        .action-card {
-            background-color: white;
-            border-radius: 4px;
-            padding: 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            border: 1px solid var(--border-color);
-            margin-bottom: 2rem;
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            border-radius: 3px;
-            font-weight: 500;
-            padding: 0.5rem 1.5rem;
-            transition: background-color 0.2s ease;
-        }
-        
-        .btn-primary:hover {
-            background-color: var(--accent-color);
-            border-color: var(--accent-color);
-        }
-        
-        .btn-success {
-            background-color: var(--success-color);
-            border-color: var(--success-color);
-            border-radius: 3px;
-            font-weight: 500;
-            padding: 0.5rem 1.5rem;
-        }
-        
-        .form-control {
-            border-radius: 3px;
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-color);
-        }
-        
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 1.5rem 0;
-        }
-        
-        .divider::before, 
-        .divider::after {
-            content: "";
-            flex: 1;
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        .divider-text {
-            padding: 0 1rem;
-            color: #777;
-        }
-        
-        .footer {
-            margin-top: auto;
-            padding: 1.5rem 0;
-            background-color: var(--dark-color);
-            color: white;
-            width: 100%;
-        }
-        
-        .main-content {
-            padding: 3rem 0;
-            flex: 1 0 auto;
-        }
-        
-        /* Ek içerik için stil */
-        .testimonials {
-            padding: 2rem 0 3rem;
-            background-color: #f9f9f9;
-            border-top: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
-            margin: 2rem 0;
-        }
-        
-        .testimonial-card {
-            background-color: white;
-            border-radius: 4px;
-            padding: 1.5rem;
-            border: 1px solid var(--border-color);
-            height: 100%;
+            background: var(--gradient-primary);
+            padding: 2rem 0;
             position: relative;
+            overflow: hidden;
         }
-        
-        .testimonial-card::before {
-            content: '\201C';
-            font-size: 4rem;
+
+        .header::before {
+            content: '';
             position: absolute;
-            top: -0.5rem;
-            left: 1rem;
-            color: #e0e0e0;
-            font-family: serif;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.1)" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,213.3C672,192,768,128,864,128C960,128,1056,192,1152,208C1248,224,1344,192,1392,176L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
+            background-size: cover;
         }
-        
-        .client-info {
-            display: flex;
-            align-items: center;
-            margin-top: 1rem;
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #ffffff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0;
         }
-        
-        .client-image {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            margin-right: 1rem;
-            background-color: var(--primary-color);
-            color: white;
+
+        .hero-section {
+            padding: 6rem 0;
+            position: relative;
+            background-color: white;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: none;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--gradient-primary);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-        }
-        
-        .stats-section {
-            padding: 3rem 0;
-            background-color: var(--primary-color);
+            font-size: 1.5rem;
             color: white;
-            text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 1.5rem;
         }
-        
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .meeting-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-section {
+            background: var(--gradient-primary);
+            padding: 5rem 0;
+            position: relative;
+        }
+
         .stat-item {
-            padding: 1.5rem;
+            text-align: center;
+            color: white;
         }
-        
+
         .stat-number {
-            font-size: 2.5rem;
+            font-size: 3rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #ffffff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        
-        .stat-label {
-            font-size: 1rem;
-            opacity: 0.8;
+
+        .testimonial-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: none;
+            position: relative;
+        }
+
+        .client-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        .footer {
+            background: var(--dark-color);
+            padding: 3rem 0;
+            color: white;
+        }
+
+        /* Animasyonlar için özel sınıflar */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Responsive düzenlemeler */
+        @media (max-width: 768px) {
+            .hero-section {
+                padding: 3rem 0;
+            }
+            
+            .stat-number {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <header class="header">
         <div class="container">
             <div class="row align-items-center">
-                <div class="col-md-6">
-                    <h1 class="logo">Vi<span>Zoom</span></h1>
-                    <p class="tagline">Kurumsal görüntülü iletişim çözümü</p>
+                <div class="col-md-6" data-aos="fade-right">
+                    <h1 class="logo">Viko</h1>
+                    <p class="text-white opacity-90 fs-5 mt-3">Profesyonel Görüntülü İletişimin Yeni Standardı</p>
                 </div>
-                <div class="col-md-6 text-end d-none d-md-block">
-                    <p class="mb-0"><i class="fas fa-headset me-2"></i>7/24 Teknik Destek</p>
+                <div class="col-md-6 text-end d-none d-md-block" data-aos="fade-left">
+                    <span class="badge bg-white text-primary px-3 py-2">
+                        <i class="fas fa-headset me-2"></i>7/24 Canlı Destek
+                    </span>
                 </div>
             </div>
         </div>
     </header>
-    
-    <div class="main-content">
+
+    <section class="hero-section">
         <div class="container">
-            <!-- Features Section -->
-            <h2 class="section-title">Neden ViZoom?</h2>
-            <div class="row mb-5">
-                <div class="col-md-4 mb-4">
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <h4>Güvenli İletişim</h4>
-                        <p>Gelişmiş şifreleme teknolojisiyle kurumsal verileriniz her zaman güvende.</p>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-video"></i>
-                        </div>
-                        <h4>Yüksek Kalite</h4>
-                        <p>Düşük bant genişliğinde bile kesintisiz ve yüksek kaliteli görüntülü iletişim.</p>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <h4>Çoklu Kullanıcı Desteği</h4>
-                        <p>Ekibiniz ve müşterilerinizle sorunsuz çoklu konferans imkanı.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Action Section -->
-            <h2 class="section-title">Toplantı Oluşturun</h2>
-            <div class="row justify-content-center mb-5">
+            <div class="row justify-content-center">
                 <div class="col-md-8">
-                    <div class="action-card">
+                    <div class="meeting-card text-center" data-aos="zoom-in">
+                        <h2 class="mb-4">Hemen Toplantıya Başlayın</h2>
                         <div class="d-grid gap-3">
                             <form action="/oda-olustur" method="post">
-                                <button type="submit" class="btn btn-success btn-lg w-100">
-                                    <i class="fas fa-plus-circle me-2"></i>Yeni Toplantı Oluştur
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-video me-2"></i>Yeni Toplantı Oluştur
                                 </button>
                             </form>
                             
-                            <div class="divider">
-                                <span class="divider-text">veya</span>
+                            <div class="position-relative my-4">
+                                <hr>
+                                <span class="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted">
+                                    veya
+                                </span>
                             </div>
                             
                             <div class="input-group">
-                                <input type="text" id="odaId" class="form-control" placeholder="Toplantı ID'si girin">
-                                <button onclick="katilToplanti()" class="btn btn-primary">
+                                <input type="text" id="odaId" class="form-control form-control-lg" placeholder="Toplantı Kodunu Girin">
+                                <button onclick="katilToplanti()" class="btn btn-primary btn-lg">
                                     <i class="fas fa-sign-in-alt me-2"></i>Katıl
                                 </button>
                             </div>
@@ -305,105 +229,141 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Stats Section -->
-            <div class="stats-section">
-                <div class="container">
-                    <div class="row">
-                        <div class="col-md-4 stat-item">
-                            <div class="stat-number">10,000+</div>
-                            <div class="stat-label">Aktif Kullanıcı</div>
+        </div>
+    </section>
+
+    <section class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5" data-aos="fade-up">Neden Viko?</h2>
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
                         </div>
-                        <div class="col-md-4 stat-item">
-                            <div class="stat-number">5,000+</div>
-                            <div class="stat-label">Günlük Toplantı</div>
-                        </div>
-                        <div class="col-md-4 stat-item">
-                            <div class="stat-number">99.9%</div>
-                            <div class="stat-label">Hizmet Sürekliliği</div>
-                        </div>
+                        <h4>Uçtan Uca Şifreleme</h4>
+                        <p class="text-muted">Görüşmeleriniz ve verileriniz en üst düzey güvenlik protokolleriyle korunur.</p>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Testimonials Section -->
-            <h2 class="section-title">Müşteri Yorumları</h2>
-            <div class="testimonials">
-                <div class="container">
-                    <div class="row">
-                        <div class="col-md-4 mb-4">
-                            <div class="testimonial-card">
-                                <p>"ViZoom ile toplantılarımız daha verimli ve güvenli hale geldi. Özellikle müşterilerimizle görüşmelerimizde harika sonuçlar alıyoruz."</p>
-                                <div class="client-info">
-                                    <div class="client-image">AT</div>
-                                    <div>
-                                        <h5 class="mb-0">Ahmet Türk</h5>
-                                        <small>Finans Müdürü, XYZ Bank</small>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-video"></i>
                         </div>
-                        <div class="col-md-4 mb-4">
-                            <div class="testimonial-card">
-                                <p>"Uzaktan çalışma sürecimizde ViZoom olmazsa olmazımız oldu. Kolay kullanımı ve güvenilirliği ile fark yaratıyor."</p>
-                                <div class="client-info">
-                                    <div class="client-image">MY</div>
-                                    <div>
-                                        <h5 class="mb-0">Merve Yılmaz</h5>
-                                        <small>İK Direktörü, ABC Holding</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-4">
-                            <div class="testimonial-card">
-                                <p>"Hibrit çalışma modelimizde ViZoom'un sağladığı kesintisiz iletişim sayesinde ekip bağlılığımızı koruduk ve verimliliğimizi artırdık."</p>
-                                <div class="client-info">
-                                    <div class="client-image">CK</div>
-                                    <div>
-                                        <h5 class="mb-0">Can Kara</h5>
-                                        <small>CEO, Teknoloji A.Ş.</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <h4>HD Görüntü Kalitesi</h4>
+                        <p class="text-muted">Düşük internet hızlarında bile kesintisiz HD görüntü ve ses deneyimi.</p>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Enterprise Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="feature-card text-center">
-                        <h3 class="mb-3">Kurumsal Çözümler</h3>
-                        <p class="mb-0">Şirketinizin ihtiyaçlarına özel ViZoom kurumsal paketleri hakkında bilgi almak için bizimle iletişime geçin.</p>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h4>Sınırsız Katılımcı</h4>
+                        <p class="text-muted">İstediğiniz kadar katılımcıyla sorunsuz toplantılar gerçekleştirin.</p>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Footer -->
+    </section>
+
+    <section class="stats-section">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="fade-up">
+                    <div class="stat-item">
+                        <div class="stat-number">100K+</div>
+                        <div class="text-white opacity-75">Aktif Kullanıcı</div>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-item">
+                        <div class="stat-number">50K+</div>
+                        <div class="text-white opacity-75">Günlük Toplantı</div>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-item">
+                        <div class="stat-number">99.9%</div>
+                        <div class="text-white opacity-75">Kesintisiz Hizmet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5" data-aos="fade-up">Müşterilerimiz Ne Diyor?</h2>
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="fade-up">
+                    <div class="testimonial-card">
+                        <p class="mb-4">"Viko ile toplantılarımız çok daha profesyonel ve verimli hale geldi. Müthiş bir platform!"</p>
+                        <div class="d-flex align-items-center">
+                            <div class="client-image me-3">AY</div>
+                            <div>
+                                <h5 class="mb-0">Ayşe Yılmaz</h5>
+                                <small class="text-muted">Pazarlama Direktörü</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div class="testimonial-card">
+                        <p class="mb-4">"Uzaktan çalışma sürecimizde vazgeçilmezimiz oldu. Kullanımı çok kolay ve güvenilir."</p>
+                        <div class="d-flex align-items-center">
+                            <div class="client-image me-3">MK</div>
+                            <div>
+                                <h5 class="mb-0">Mehmet Kaya</h5>
+                                <small class="text-muted">Genel Müdür</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div class="testimonial-card">
+                        <p class="mb-4">"Ekip içi iletişimimiz  Viko sayesinde hiç olmadığı kadar güçlü. Teşekkürler!"</p>
+                        <div class="d-flex align-items-center">
+                            <div class="client-image me-3">SD</div>
+                            <div>
+                                <h5 class="mb-0">Selin Demir</h5>
+                                <small class="text-muted">İK Müdürü</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <footer class="footer">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <p class="mb-0">© 2025 ViZoom. Tüm hakları saklıdır.</p>
+                    <h3 class="h5 mb-3">Viko</h3>
+                    <p class="mb-0 opacity-75">Profesyonel görüntülü iletişimin geleceği</p>
                 </div>
-                <div class="col-md-6 text-end">
-                    <p class="mb-0">Güvenli ve Profesyonel İletişim Çözümü</p>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-2 opacity-75">İletişim: destek@viko.com</p>
+                    <p class="mb-0 opacity-75">© 2025 Viko. Tüm hakları saklıdır.</p>
                 </div>
             </div>
         </div>
     </footer>
 
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
     <script>
+        AOS.init({
+            duration: 800,
+            once: true
+        });
+
         function katilToplanti() {
             const odaId = document.getElementById('odaId').value.trim();
             if (odaId) {
                 window.location.href = `/oda/${odaId}`;
             } else {
-                alert('Lütfen geçerli bir toplantı ID\'si girin!');
+                alert('Lütfen geçerli bir toplantı kodu girin!');
             }
         }
     </script>
